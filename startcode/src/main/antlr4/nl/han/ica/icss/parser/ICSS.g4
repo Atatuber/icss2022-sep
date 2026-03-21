@@ -41,9 +41,18 @@ MIN: '-';
 MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
-
-
+// Custom
+WIDTH: 'width' COLON;
+HEIGHT: 'height' COLON;
+BG_COLOR: 'background-color' COLON;
+COLOR_NAME: 'color' COLON;
 
 //--- PARSER: ---
-stylesheet: EOF;
+stylesheet: (stylerule)+;
 
+stylerule : (ID_IDENT | CLASS_IDENT | LOWER_IDENT | CAPITAL_IDENT) OPEN_BRACE (declaration)+ CLOSE_BRACE;
+
+declaration : (color_declaration | size_declaration) SEMICOLON;
+
+color_declaration: (COLOR_NAME | BG_COLOR ) COLOR;
+size_declaration: (WIDTH | HEIGHT ) (PIXELSIZE | PERCENTAGE);
