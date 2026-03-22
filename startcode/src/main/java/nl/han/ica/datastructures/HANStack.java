@@ -2,11 +2,10 @@ package nl.han.ica.datastructures;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 public class HANStack<T> implements IHANStack<T> {
 
-    private final List<T> stack;
+    private final ArrayList<T> stack;
 
     // Make empty stack
     public HANStack() {
@@ -25,14 +24,13 @@ public class HANStack<T> implements IHANStack<T> {
 
     @Override
     public T pop() {
-        return this.stack.remove(stack.toArray().length - 1);
+        return this.stack.removeLast();
     }
 
     @Override
     public T peek() {
-        return this.stack.get(stack.toArray().length - 1);
+        return this.stack.getLast();
     }
-
     public String toString() {
         return Arrays.toString(this.stack.toArray());
     }
