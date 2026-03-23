@@ -35,8 +35,8 @@ public class ASTListener extends ICSSBaseListener {
 	@Override
 	public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
 
-		VariableReference reference = new VariableReference(ctx.getChild(0).getText()); // Raw reference
-		String value = ctx.getChild(2).getText();
+		VariableReference reference = new VariableReference(ctx.CAPITAL_IDENT().getText()); // Raw reference
+		String value = ctx.literal().getText();
 
 		ExpressionType type = getExpressionType(value);
 		Expression expression = getExpression(type, value);
@@ -57,7 +57,7 @@ public class ASTListener extends ICSSBaseListener {
 		currentContainer.push(rule);
 
 		// Add selector to AST
-		Selector selector = getSelector(ctx.getChild(0).getText());
+		Selector selector = getSelector(ctx.selector().getText());
 		rule.addChild(selector);
 	}
 
@@ -97,7 +97,7 @@ public class ASTListener extends ICSSBaseListener {
 		ASTNode parent = currentContainer.peek();
 
 		// Add declaration to AST
-		String rawProperty = ctx.getChild(0).getText();
+		String rawProperty = ctx.propertyName().getText();
 		Declaration declaration = new Declaration(rawProperty);
 
 		// Add the declaration to current container and make declaration current
@@ -141,8 +141,8 @@ public class ASTListener extends ICSSBaseListener {
 	public void enterMultiplyOperation(ICSSParser.MultiplyOperationContext ctx) {
 		if(ctx.MUL().isEmpty()) return;
 
-		String value = ctx.getChild(0).getText();
-		String value2 = ctx.getChild(2).getText();
+		String value = ctx.num(0).getText();
+		String value2 = ctx.num(1).getText();
 		Expression multiply = new MultiplyOperation();
 
 		multiply.addChild(getExpression(getExpressionType(value), value));
