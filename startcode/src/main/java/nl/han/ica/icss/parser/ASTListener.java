@@ -10,9 +10,6 @@ import nl.han.ica.icss.ast.selectors.ClassSelector;
 import nl.han.ica.icss.ast.selectors.IdSelector;
 import nl.han.ica.icss.ast.selectors.TagSelector;
 import nl.han.ica.icss.ast.types.ExpressionType;
-import org.antlr.v4.runtime.ParserRuleContext;
-
-import java.util.EmptyStackException;
 
 /**
  * This class extracts the ICSS Abstract Syntax Tree from the Antlr Parse tree.
@@ -35,7 +32,23 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void exitStylesheet(ICSSParser.StylesheetContext ctx) {
-		super.exitStylesheet(ctx);
+	}
+
+	@Override
+	public void enterVariable_assignment(ICSSParser.Variable_assignmentContext ctx) {
+
+		VariableReference reference = new VariableReference(ctx.getChild(0).getText()); // Raw reference
+		String value = ctx.getChild(2).getText();
+
+		ExpressionType type = getExpressionType(value);
+		Expression expression = getExpression(type, value);
+
+		VariableAssignment assignment = new VariableAssignment();
+		assignment.addChild(reference);
+		assignment.addChild(expression);
+
+
+		ast.root.addChild(assignment);
 	}
 
 	@Override
@@ -52,23 +65,35 @@ public class ASTListener extends ICSSBaseListener {
 
 	@Override
 	public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
-		Stylerule rule = (Stylerule) currentContainer.peek();
-
-		// Add key-value declaration to AST
-		String[] rawDeclaration = ctx.getChild(0).getText().split("[:;]");
-
-		// Make declaration properties for declaration
-		String rawProperty =  rawDeclaration[0];
-		String value = rawDeclaration[1];
-		ExpressionType expressionType = getExpressionType(value);
-		Expression expression = getExpression(expressionType, value);
+		ASTNode parent = currentContainer.peek();
 
 		// Add declaration to AST
+		String rawProperty = ctx.getChild(0).getText();
 		Declaration declaration = new Declaration(rawProperty);
-		declaration.addChild(expression);
 
-		// Add the declaration to the rule
-		rule.addChild(declaration);
+		// Add the declaration to current container and make declaration current
+		parent.addChild(declaration);
+		currentContainer.push(declaration);
+	}
+
+	@Override
+	public void enterLiteralExpression(ICSSParser.LiteralExpressionContext ctx) {
+		String value = ctx.getText();
+
+		ASTNode parent = currentContainer.peek();
+
+		ExpressionType expressionType = getExpressionType(value);
+		Expression expression = getExpression(expressionType, value);
+		parent.addChild(expression);
+	}
+
+	@Override
+	public void enterVariableExpression(ICSSParser.VariableExpressionContext ctx) {
+		String value = ctx.getText();
+
+		ASTNode parent = currentContainer.peek();
+		VariableReference reference = new VariableReference(value);
+		parent.addChild(reference);
 	}
 
 	@Override
@@ -77,12 +102,17 @@ public class ASTListener extends ICSSBaseListener {
 		ast.root.addChild(rule);
 	}
 
+	@Override
+	public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
+		currentContainer.pop();
+	}
+
 	private Selector getSelector(String text) {
 		if(text.startsWith(".")) {
 			return new ClassSelector(text);
 		} else if(text.startsWith("#")) {
 			return new IdSelector(text);
-		} else { // TODO: Update this so it correctly checks HTML tags (example.. a, html)
+		} else { // TODO: Better check for this tag selector
 			return new TagSelector(text);
 		}
 	}
@@ -110,6 +140,21 @@ public class ASTListener extends ICSSBaseListener {
 		if (text.endsWith("px")) {
 			return ExpressionType.PIXEL;
 		}
+		if (isInteger(text)) {
+			return ExpressionType.SCALAR;
+		}
+		if (text.trim().equals("TRUE") || text.trim().equals("FALSE")) {
+			return ExpressionType.BOOL;
+		}
 		return ExpressionType.UNDEFINED;
+	}
+
+	private boolean isInteger(String text) {
+		try {
+			Integer.parseInt(text);
+			return true;
+		} catch(NumberFormatException e) {
+			return false;
+		}
 	}
 }

@@ -23,7 +23,9 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
             this.right = right;
         }
         public String toString() {
-            return value.toString() + " LEFT: " + left.toString() + ", RIGHT: " + right.toString();
+            assert left != null;
+            assert right != null;
+            return value + " LEFT: " + left + ", RIGHT: " + right;
         }
     }
 

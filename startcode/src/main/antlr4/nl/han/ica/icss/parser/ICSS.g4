@@ -41,18 +41,21 @@ MIN: '-';
 MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
-// Custom
-WIDTH: 'width' COLON;
-HEIGHT: 'height' COLON;
-BG_COLOR: 'background-color' COLON;
-COLOR_NAME: 'color' COLON;
-
 //--- PARSER: ---
-stylesheet: (stylerule)+;
+stylesheet: (variable_assignment | stylerule)+ EOF;
 
-stylerule : (ID_IDENT | CLASS_IDENT | LOWER_IDENT | CAPITAL_IDENT) OPEN_BRACE (declaration)+ CLOSE_BRACE;
+// Variables
+variable_assignment: CAPITAL_IDENT ASSIGNMENT_OPERATOR literal SEMICOLON;
+variable_reference: CAPITAL_IDENT;
+property_name: LOWER_IDENT;
 
-declaration : (color_declaration | size_declaration) SEMICOLON;
+// Styling
+stylerule : selector OPEN_BRACE declaration+ CLOSE_BRACE;
 
-color_declaration: (COLOR_NAME | BG_COLOR ) COLOR;
-size_declaration: (WIDTH | HEIGHT ) (PIXELSIZE | PERCENTAGE);
+declaration : property_name COLON expression SEMICOLON;
+
+expression: variable_reference #VariableExpression | literal #LiteralExpression ;
+
+literal: COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE;
+
+selector: ID_IDENT | CLASS_IDENT | LOWER_IDENT;
