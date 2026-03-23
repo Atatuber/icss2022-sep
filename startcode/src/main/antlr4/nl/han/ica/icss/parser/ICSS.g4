@@ -51,14 +51,15 @@ propertyName: LOWER_IDENT;
 
 // Operations
 
-operation: addOperation | subtractOperation;
+operation : addSubtractOperation;
 
-addOperation: multiplyOperation (PLUS multiplyOperation)*;
-subtractOperation: multiplyOperation (MIN multiplyOperation)*;
-multiplyOperation: lhs (MUL rhs)*;
+addSubtractOperation: multiplyOperation ((PLUS | MIN) multiplyOperation)*;
+multiplyOperation: num (MUL num)*;
 
-lhs: variableReference | SCALAR | PIXELSIZE | PERCENTAGE;
-rhs: variableReference | SCALAR | PIXELSIZE | PERCENTAGE;
+num :
+    variableReference
+    | literal
+    ;
 
 // If Statements
 
@@ -73,7 +74,10 @@ styleRule : selector OPEN_BRACE (ifClause | declaration)+ CLOSE_BRACE;
 
 declaration : propertyName COLON expression SEMICOLON;
 
-expression: variableReference #VariableExpression | operation #OperationExpression | literal #LiteralExpression ;
+expression:
+    variableReference #VariableExpression
+    | operation #OperationExpression
+    | literal #LiteralExpression ;
 
 literal: COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE;
 

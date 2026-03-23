@@ -6,6 +6,9 @@ import nl.han.ica.datastructures.HANStack;
 import nl.han.ica.datastructures.IHANStack;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.*;
+import nl.han.ica.icss.ast.operations.AddOperation;
+import nl.han.ica.icss.ast.operations.MultiplyOperation;
+import nl.han.ica.icss.ast.operations.SubtractOperation;
 import nl.han.ica.icss.ast.selectors.ClassSelector;
 import nl.han.ica.icss.ast.selectors.IdSelector;
 import nl.han.ica.icss.ast.selectors.TagSelector;
@@ -30,9 +33,6 @@ public class ASTListener extends ICSSBaseListener {
         return ast;
     }
 
-	@Override
-	public void exitStylesheet(ICSSParser.StylesheetContext ctx) {
-	}
 
 	@Override
 	public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
@@ -52,7 +52,7 @@ public class ASTListener extends ICSSBaseListener {
 	}
 
 	@Override
-	public void enterStylerule(ICSSParser.StyleruleContext ctx) {
+	public void enterStyleRule(ICSSParser.StyleRuleContext ctx) {
 		Stylerule rule = new Stylerule();
 
 		// Push the current node rule to the stack
@@ -97,7 +97,64 @@ public class ASTListener extends ICSSBaseListener {
 	}
 
 	@Override
-	public void exitStylerule(ICSSParser.StyleruleContext ctx) {
+	public void enterNum(ICSSParser.NumContext ctx) {
+		ASTNode parent = currentContainer.peek();
+		String text = ctx.getText();
+
+		if(ctx.variableReference() != null) {
+			parent.addChild(new VariableReference(text));
+		} else {
+			parent.addChild(getExpression(getExpressionType(text), text));
+		}
+	}
+
+	@Override
+	public void enterMultiplyOperation(ICSSParser.MultiplyOperationContext ctx) {
+		if(ctx.MUL().isEmpty()) return;
+
+		String value = ctx.getChild(0).getText();
+		String value2 = ctx.getChild(2).getText();
+		Expression multiply = new MultiplyOperation();
+
+		multiply.addChild(getExpression(getExpressionType(value), value));
+		multiply.addChild(getExpression(getExpressionType(value2), value2));
+
+		currentContainer.peek().addChild(multiply);
+	}
+
+	@Override
+	public void enterAddSubtractOperation(ICSSParser.AddSubtractOperationContext ctx) {
+		if(ctx.PLUS().isEmpty() && ctx.MIN().isEmpty()) return;
+
+		ASTNode parent = currentContainer.peek();
+
+		if(!ctx.PLUS().isEmpty()) {
+			Expression addOperation = new AddOperation();
+			parent.addChild(addOperation);
+			currentContainer.push(addOperation);
+		} else {
+			Expression subtractOperation = new SubtractOperation();
+			parent.addChild(subtractOperation);
+			currentContainer.push(subtractOperation);
+		}
+	}
+
+	@Override
+	public void exitAddSubtractOperation(ICSSParser.AddSubtractOperationContext ctx) {
+		if (currentContainer.peek() instanceof AddOperation || currentContainer.peek() instanceof SubtractOperation) {
+			currentContainer.pop();
+		}
+	}
+
+	@Override
+	public void exitMultiplyOperation(ICSSParser.MultiplyOperationContext ctx) {
+		if (currentContainer.peek() instanceof MultiplyOperation) {
+			currentContainer.pop();
+		}
+	}
+
+	@Override
+	public void exitStyleRule(ICSSParser.StyleRuleContext ctx) {
 		Stylerule rule = (Stylerule) currentContainer.pop();
 		ast.root.addChild(rule);
 	}
@@ -117,7 +174,6 @@ public class ASTListener extends ICSSBaseListener {
 		}
 	}
 
-	// TODO: Add all use-cases
 	private Expression getExpression(ExpressionType type, String literal) {
         return switch (type) {
             case COLOR -> new ColorLiteral(literal);
@@ -129,7 +185,6 @@ public class ASTListener extends ICSSBaseListener {
         };
 	}
 
-	// TODO: Add all use-cases
 	private ExpressionType getExpressionType(String text) {
 		if (text.startsWith("#")) {
 			return ExpressionType.COLOR;
