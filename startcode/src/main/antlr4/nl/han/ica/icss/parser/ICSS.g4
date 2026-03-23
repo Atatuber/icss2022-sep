@@ -60,9 +60,16 @@ multiplyOperation: lhs (MUL rhs)*;
 lhs: variableReference | SCALAR | PIXELSIZE | PERCENTAGE;
 rhs: variableReference | SCALAR | PIXELSIZE | PERCENTAGE;
 
+// If Statements
+
+ifClause: IF BOX_BRACKET_OPEN expression BOX_BRACKET_CLOSE OPEN_BRACE body CLOSE_BRACE elseClause?;
+elseClause: ELSE OPEN_BRACE body CLOSE_BRACE;
+
+body: (declaration | ifClause)+;
+
 // Styling
 
-styleRule : selector OPEN_BRACE declaration+ CLOSE_BRACE;
+styleRule : selector OPEN_BRACE (ifClause | declaration)+ CLOSE_BRACE;
 
 declaration : propertyName COLON expression SEMICOLON;
 
