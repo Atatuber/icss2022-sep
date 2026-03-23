@@ -1,7 +1,5 @@
 package nl.han.ica.icss.parser;
 
-
-
 import nl.han.ica.datastructures.HANStack;
 import nl.han.ica.datastructures.IHANStack;
 import nl.han.ica.icss.ast.*;
@@ -61,6 +59,37 @@ public class ASTListener extends ICSSBaseListener {
 		// Add selector to AST
 		Selector selector = getSelector(ctx.getChild(0).getText());
 		rule.addChild(selector);
+	}
+
+	@Override
+	public void enterIfClause(ICSSParser.IfClauseContext ctx) {
+		ASTNode parent = currentContainer.peek();
+		Expression expression = new VariableReference(ctx.expression().getText());
+
+		IfClause ifClause = new IfClause();
+		ifClause.addChild(expression);
+
+		parent.addChild(ifClause);
+		currentContainer.push(ifClause);
+	}
+
+	@Override
+	public void enterElseClause(ICSSParser.ElseClauseContext ctx) {
+		ASTNode parent = currentContainer.peek();
+
+		ElseClause elseClause = new ElseClause();
+		parent.addChild(elseClause);
+		currentContainer.push(elseClause);
+	}
+
+	@Override
+	public void exitElseClause(ICSSParser.ElseClauseContext ctx) {
+		currentContainer.pop();
+	}
+
+	@Override
+	public void exitIfClause(ICSSParser.IfClauseContext ctx) {
+		currentContainer.pop();
 	}
 
 	@Override
