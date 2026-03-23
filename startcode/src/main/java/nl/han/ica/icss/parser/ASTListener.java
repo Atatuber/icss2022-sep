@@ -35,7 +35,7 @@ public class ASTListener extends ICSSBaseListener {
 	}
 
 	@Override
-	public void enterVariable_assignment(ICSSParser.Variable_assignmentContext ctx) {
+	public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
 
 		VariableReference reference = new VariableReference(ctx.getChild(0).getText()); // Raw reference
 		String value = ctx.getChild(2).getText();

@@ -42,19 +42,31 @@ MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
 //--- PARSER: ---
-stylesheet: (variable_assignment | stylerule)+ EOF;
+stylesheet: (variableAssignment | styleRule)+ EOF;
 
 // Variables
-variable_assignment: CAPITAL_IDENT ASSIGNMENT_OPERATOR literal SEMICOLON;
-variable_reference: CAPITAL_IDENT;
-property_name: LOWER_IDENT;
+variableAssignment: CAPITAL_IDENT ASSIGNMENT_OPERATOR literal SEMICOLON;
+variableReference: CAPITAL_IDENT;
+propertyName: LOWER_IDENT;
+
+// Operations
+
+operation: addOperation | subtractOperation;
+
+addOperation: multiplyOperation (PLUS multiplyOperation)*;
+subtractOperation: multiplyOperation (MIN multiplyOperation)*;
+multiplyOperation: lhs (MUL rhs)*;
+
+lhs: variableReference | SCALAR | PIXELSIZE | PERCENTAGE;
+rhs: variableReference | SCALAR | PIXELSIZE | PERCENTAGE;
 
 // Styling
-stylerule : selector OPEN_BRACE declaration+ CLOSE_BRACE;
 
-declaration : property_name COLON expression SEMICOLON;
+styleRule : selector OPEN_BRACE declaration+ CLOSE_BRACE;
 
-expression: variable_reference #VariableExpression | literal #LiteralExpression ;
+declaration : propertyName COLON expression SEMICOLON;
+
+expression: variableReference #VariableExpression | operation #OperationExpression | literal #LiteralExpression ;
 
 literal: COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE;
 
