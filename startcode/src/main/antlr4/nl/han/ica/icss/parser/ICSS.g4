@@ -51,15 +51,10 @@ propertyName: LOWER_IDENT;
 
 // Operations
 
-operation : addSubtractOperation;
-
 addSubtractOperation: multiplyOperation ((PLUS | MIN) multiplyOperation)*;
-multiplyOperation: num (MUL num)*;
 
-num :
-    variableReference
-    | literal
-    ;
+multiplyOperation: operand (MUL operand)*;
+operand: variableReference | literal;
 
 // If Statements
 
@@ -76,7 +71,7 @@ declaration : propertyName COLON expression SEMICOLON;
 
 expression:
     variableReference #VariableExpression
-    | operation #OperationExpression
+    | addSubtractOperation #OperationExpression
     | literal #LiteralExpression ;
 
 literal: COLOR | PIXELSIZE | PERCENTAGE | SCALAR | TRUE | FALSE;

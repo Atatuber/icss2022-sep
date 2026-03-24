@@ -32,20 +32,17 @@ public class ASTListener extends ICSSBaseListener {
         return ast;
     }
 
-
     @Override
     public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
-
-        VariableReference reference = new VariableReference(ctx.CAPITAL_IDENT().getText()); // Raw reference
+        String key = ctx.CAPITAL_IDENT().getText();
         String value = ctx.literal().getText();
 
-        ExpressionType type = getExpressionType(value);
-        Expression expression = getExpression(type, value);
+        VariableReference reference = new VariableReference(key);
+        Expression expression = createLiteralExpression(value);
 
         VariableAssignment assignment = new VariableAssignment();
         assignment.addChild(reference);
         assignment.addChild(expression);
-
 
         ast.root.addChild(assignment);
     }
@@ -63,13 +60,24 @@ public class ASTListener extends ICSSBaseListener {
     }
 
     @Override
+    public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
+        ASTNode parent = currentContainer.peek();
+
+        String rawProperty = ctx.propertyName().getText();
+        Declaration declaration = new Declaration(rawProperty);
+
+        parent.addChild(declaration);
+        currentContainer.push(declaration);
+    }
+
+    @Override
     public void enterIfClause(ICSSParser.IfClauseContext ctx) {
         ASTNode parent = currentContainer.peek();
+
         Expression expression = new VariableReference(ctx.expression().getText());
-
         IfClause ifClause = new IfClause();
-        ifClause.addChild(expression);
 
+        ifClause.addChild(expression);
         parent.addChild(ifClause);
         currentContainer.push(ifClause);
     }
@@ -84,6 +92,21 @@ public class ASTListener extends ICSSBaseListener {
     }
 
     @Override
+    public void exitLiteralExpression(ICSSParser.LiteralExpressionContext ctx) {
+        currentContainer.peek().addChild(createLiteralExpression(ctx.getText()));
+    }
+
+    @Override
+    public void exitVariableExpression(ICSSParser.VariableExpressionContext ctx) {
+        currentContainer.peek().addChild(new VariableReference(ctx.getText()));
+    }
+
+    @Override
+    public void exitAddSubtractOperation(ICSSParser.AddSubtractOperationContext ctx) {
+        currentContainer.peek().addChild(buildAddSubtractExpression(ctx));
+    }
+
+    @Override
     public void exitElseClause(ICSSParser.ElseClauseContext ctx) {
         currentContainer.pop();
     }
@@ -94,93 +117,8 @@ public class ASTListener extends ICSSBaseListener {
     }
 
     @Override
-    public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
-        ASTNode parent = currentContainer.peek();
-
-        // Add declaration to AST
-        String rawProperty = ctx.propertyName().getText();
-        Declaration declaration = new Declaration(rawProperty);
-
-        // Add the declaration to current container and make declaration current
-        parent.addChild(declaration);
-        currentContainer.push(declaration);
-    }
-
-    @Override
-    public void enterLiteralExpression(ICSSParser.LiteralExpressionContext ctx) {
-        String value = ctx.getText();
-
-        ASTNode parent = currentContainer.peek();
-
-        ExpressionType expressionType = getExpressionType(value);
-        Expression expression = getExpression(expressionType, value);
-        parent.addChild(expression);
-    }
-
-    @Override
-    public void enterVariableExpression(ICSSParser.VariableExpressionContext ctx) {
-        String value = ctx.getText();
-
-        ASTNode parent = currentContainer.peek();
-        VariableReference reference = new VariableReference(value);
-        parent.addChild(reference);
-    }
-
-    @Override
-    public void enterNum(ICSSParser.NumContext ctx) {
-        ASTNode parent = currentContainer.peek();
-        String text = ctx.getText();
-
-        if (ctx.variableReference() != null) {
-            parent.addChild(new VariableReference(text));
-        } else {
-            parent.addChild(getExpression(getExpressionType(text), text));
-        }
-    }
-
-    @Override
-    public void enterMultiplyOperation(ICSSParser.MultiplyOperationContext ctx) {
-        if (ctx.MUL().isEmpty()) return;
-
-        String value = ctx.num(0).getText();
-        String value2 = ctx.num(1).getText();
-        Expression multiply = new MultiplyOperation();
-
-        multiply.addChild(getExpression(getExpressionType(value), value));
-        multiply.addChild(getExpression(getExpressionType(value2), value2));
-
-        currentContainer.peek().addChild(multiply);
-    }
-
-    @Override
-    public void enterAddSubtractOperation(ICSSParser.AddSubtractOperationContext ctx) {
-        if (ctx.PLUS().isEmpty() && ctx.MIN().isEmpty()) return;
-
-        ASTNode parent = currentContainer.peek();
-
-        if (!ctx.PLUS().isEmpty()) {
-            Expression addOperation = new AddOperation();
-            parent.addChild(addOperation);
-            currentContainer.push(addOperation);
-        } else {
-            Expression subtractOperation = new SubtractOperation();
-            parent.addChild(subtractOperation);
-            currentContainer.push(subtractOperation);
-        }
-    }
-
-    @Override
-    public void exitAddSubtractOperation(ICSSParser.AddSubtractOperationContext ctx) {
-        if (currentContainer.peek() instanceof AddOperation || currentContainer.peek() instanceof SubtractOperation) {
-            currentContainer.pop();
-        }
-    }
-
-    @Override
-    public void exitMultiplyOperation(ICSSParser.MultiplyOperationContext ctx) {
-        if (currentContainer.peek() instanceof MultiplyOperation) {
-            currentContainer.pop();
-        }
+    public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
+        currentContainer.pop();
     }
 
     @Override
@@ -189,9 +127,61 @@ public class ASTListener extends ICSSBaseListener {
         ast.root.addChild(rule);
     }
 
-    @Override
-    public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
-        currentContainer.pop();
+    // ---- HELPER FUNCTIONS ----
+
+    private Expression buildAddSubtractExpression(ICSSParser.AddSubtractOperationContext ctx) {
+        Expression expression = buildMultiplyExpression(ctx.multiplyOperation(0));
+
+        for (int i = 1; i < ctx.multiplyOperation().size(); i++) {
+            String op = ctx.getChild(2 * i - 1).getText();
+
+            Expression rhs = buildMultiplyExpression(ctx.multiplyOperation(i));
+
+            Operation operation = buildBinaryExpression(op);
+            operation.lhs = expression;
+            operation.rhs = rhs;
+
+            expression = operation;
+        }
+
+        return expression;
+    }
+
+    private Expression buildMultiplyExpression(ICSSParser.MultiplyOperationContext ctx) {
+        if (ctx.MUL().isEmpty()) {
+            return makeOperand(ctx.getText());
+        }
+
+        Expression left = makeOperand(ctx.operand(0).getText());
+
+        for (int i = 1; i < ctx.operand().size(); i++) {
+            Expression right = makeOperand(ctx.operand(i).getText());
+            MultiplyOperation next = new MultiplyOperation();
+
+            next.lhs = left;
+            next.rhs = right;
+
+            left = next;
+        }
+
+        return left;
+    }
+
+    private Expression makeOperand(String text) {
+        Expression expression = getExpression(getExpressionType(text), text);
+        if (expression == null) {
+            return new VariableReference(text);
+        }
+
+        return expression;
+    }
+
+    public Operation buildBinaryExpression(String op) {
+        return switch (op) {
+            case "+" -> new AddOperation();
+            case "-" -> new SubtractOperation();
+            default -> throw new IllegalStateException("Unexpected value: " + op);
+        };
     }
 
     private Selector getSelector(String text) {
@@ -202,6 +192,10 @@ public class ASTListener extends ICSSBaseListener {
         } else { // TODO: Better check for this tag selector
             return new TagSelector(text);
         }
+    }
+
+    private Expression createLiteralExpression(String literal) {
+        return getExpression(getExpressionType(literal), literal);
     }
 
     private Expression getExpression(ExpressionType type, String literal) {

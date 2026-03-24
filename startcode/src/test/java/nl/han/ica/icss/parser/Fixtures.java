@@ -7,6 +7,7 @@ import nl.han.ica.icss.ast.literals.PixelLiteral;
 import nl.han.ica.icss.ast.literals.ScalarLiteral;
 import nl.han.ica.icss.ast.operations.AddOperation;
 import nl.han.ica.icss.ast.operations.MultiplyOperation;
+import nl.han.ica.icss.ast.operations.SubtractOperation;
 import nl.han.ica.icss.ast.selectors.ClassSelector;
 import nl.han.ica.icss.ast.selectors.IdSelector;
 import nl.han.ica.icss.ast.selectors.TagSelector;
@@ -205,6 +206,31 @@ public class Fixtures {
 				.addChild(new ColorLiteral("#000000")))
 		);
 		return new AST(stylesheet);
+	}
+
+	public static AST customUncheckedLevel2() {
+		Stylesheet stylesheet = new Stylesheet();
+		stylesheet.addChild((new VariableAssignment())
+				.addChild(new VariableReference("ParWidth"))
+				.addChild(new PixelLiteral("500px"))
+		);
+
+		stylesheet.addChild((new Stylerule())
+				.addChild(new IdSelector("#menu"))
+				.addChild((new Declaration("width"))
+								.addChild((new AddOperation())
+										.addChild(new VariableReference("ParWidth"))
+										.addChild((new MultiplyOperation())
+												.addChild(new ScalarLiteral("2"))
+												.addChild(new PixelLiteral("10px"))))
+				)
+		);
+
+		return new AST(stylesheet);
+	}
+
+	public static AST customUncheckedLevel3() {
+		return new AST(new Stylesheet());
 	}
 
 	public static AST uncheckedLevel3() {

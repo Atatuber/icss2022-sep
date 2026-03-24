@@ -74,6 +74,13 @@ class ParserTest {
 		AST exp = Fixtures.uncheckedLevel2();
 		assertEquals(exp,sut);
 	}
+
+	@Test
+	void testParseLevel2Custom() throws IOException {
+		AST sut = parseTestFile("level2-custom.icss");
+		AST exp = Fixtures.customUncheckedLevel2();
+		assertEquals(exp,sut);
+	}
 	@Test
 	void testParseLevel3() throws IOException {
 

@@ -37,7 +37,7 @@ public class Checker {
             checkReferences(((VariableReference) node).name, (VariableReference) node);
         }
         if(node instanceof Operation) {
-            checkAdditionSemantics((Operation) node);
+            checkColorInOperation((Operation) node);
         }
 
         for(ASTNode child : node.getChildren()) {
@@ -59,7 +59,10 @@ public class Checker {
         }
     }
 
-    public void checkAdditionSemantics(Operation node) {
+    // CH03
+    public void checkColorInOperation(Operation node) {
+        System.out.println(node);
+        System.out.println("-----");
         if(node.lhs.toString().contains("#")) {
             node.setError("Invalid operation '" + node.lhs.toString() + "'. Please use correct format for operations.");
         } else if( node.rhs.toString().contains("#")) {
