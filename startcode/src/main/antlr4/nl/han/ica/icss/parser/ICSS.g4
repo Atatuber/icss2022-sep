@@ -45,7 +45,7 @@ ASSIGNMENT_OPERATOR: ':=';
 stylesheet: (variableAssignment | styleRule)+ EOF;
 
 // Variables
-variableAssignment: CAPITAL_IDENT ASSIGNMENT_OPERATOR literal SEMICOLON;
+variableAssignment: CAPITAL_IDENT ASSIGNMENT_OPERATOR (literal | addSubtractOperation) SEMICOLON;
 variableReference: CAPITAL_IDENT;
 propertyName: LOWER_IDENT;
 
@@ -67,7 +67,7 @@ body: (declaration | ifClause)+;
 
 styleRule : selector OPEN_BRACE (ifClause | declaration)+ CLOSE_BRACE;
 
-declaration : propertyName COLON expression SEMICOLON;
+declaration : (propertyName COLON expression SEMICOLON) | variableAssignment;
 
 expression:
     variableReference #VariableExpression

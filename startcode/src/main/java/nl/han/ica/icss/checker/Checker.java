@@ -141,7 +141,7 @@ public class Checker {
         return ExpressionType.UNDEFINED;
     }
 
-    // CH03
+    // CH03 - TODO: Isn't working as intended, need to fix
     public void checkColorInOperation(Operation node) {
         if (operationContainsColor(node)) {
             node.setError("Invalid operation '" + node.lhs.toString() + "'. Please use correct format for operations.");

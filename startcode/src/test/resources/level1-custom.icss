@@ -1,0 +1,6 @@
+ParWidth := 500px * 2;
+
+#menu {
+    TarWidth := 500px * 2;
+	width: ParWidth;
+}

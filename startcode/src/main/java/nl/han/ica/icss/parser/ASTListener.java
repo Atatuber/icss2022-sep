@@ -32,19 +32,25 @@ public class ASTListener extends ICSSBaseListener {
         return ast;
     }
 
+
+    @Override
+    public void enterStylesheet(ICSSParser.StylesheetContext ctx) {
+        currentContainer.push(ast.root);
+    }
+
     @Override
     public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
-        String key = ctx.CAPITAL_IDENT().getText();
-        String value = ctx.literal().getText();
-
-        VariableReference reference = new VariableReference(key);
-        Expression expression = createLiteralExpression(value);
-
         VariableAssignment assignment = new VariableAssignment();
-        assignment.addChild(reference);
-        assignment.addChild(expression);
+        assignment.addChild(new VariableReference(ctx.CAPITAL_IDENT().getText()));
 
-        ast.root.addChild(assignment);
+        if (ctx.literal() != null) {
+            String literal = ctx.literal().getText();
+            assignment.addChild(createLiteralExpression(literal));
+        } else if (ctx.addSubtractOperation() != null) {
+            assignment.addChild(buildAddSubtractExpression(ctx.addSubtractOperation()));
+        }
+
+        currentContainer.push(assignment);
     }
 
     @Override
@@ -62,12 +68,13 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
         ASTNode parent = currentContainer.peek();
-
-        String rawProperty = ctx.propertyName().getText();
-        Declaration declaration = new Declaration(rawProperty);
-
-        parent.addChild(declaration);
-        currentContainer.push(declaration);
+        // VariableAssignment
+        if (ctx.propertyName() != null) {
+            String rawProperty = ctx.propertyName().getText();
+            Declaration declaration = new Declaration(rawProperty);
+            parent.addChild(declaration);
+            currentContainer.push(declaration);
+        }
     }
 
     @Override
@@ -118,13 +125,26 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
-        currentContainer.pop();
+        if(ctx.propertyName() != null) {
+            currentContainer.pop();
+        }
+    }
+
+    @Override
+    public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
+        VariableAssignment assignment = (VariableAssignment) currentContainer.pop();
+        currentContainer.peek().addChild(assignment);
     }
 
     @Override
     public void exitStyleRule(ICSSParser.StyleRuleContext ctx) {
         Stylerule rule = (Stylerule) currentContainer.pop();
         ast.root.addChild(rule);
+    }
+
+    @Override
+    public void exitStylesheet(ICSSParser.StylesheetContext ctx) {
+        currentContainer.pop();
     }
 
     // ---- HELPER FUNCTIONS ----
