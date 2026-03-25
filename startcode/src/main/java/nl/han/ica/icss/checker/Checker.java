@@ -33,21 +33,7 @@ public class Checker {
             openendScope = true;
         }
 
-        if (node instanceof VariableAssignment) {
-            addAssignment((VariableAssignment) node);
-        }
-        if (node instanceof VariableReference ref) {
-            checkReference(ref);
-        }
-        if (node instanceof Operation operation && isNodeOperation(node)) {
-            checkColorInOperation(operation);
-
-            if (node instanceof AddOperation || node instanceof SubtractOperation) {
-                checkOperation(operation, Check.ADDITION);
-            } else {
-                checkOperation(operation, Check.MULTIPLICATION);
-            }
-        }
+        checkNodeSemantics(node);
 
         for (ASTNode child : node.getChildren()) {
             checkNode(child);
@@ -58,15 +44,36 @@ public class Checker {
         }
     }
 
+    public void checkNodeSemantics(ASTNode node) {
+        if (node instanceof IfClause ifClause) {
+            checkIfClause(ifClause);
+        }
+        if (node instanceof VariableAssignment assignment) {
+            addAssignment(assignment);
+        }
+        if (node instanceof VariableReference ref) {
+            checkReference(ref);
+        }
+        if (node instanceof Operation operation) {
+            if (node instanceof AddOperation || node instanceof SubtractOperation) {
+                checkOperation(operation, Check.ADDITION);
+            } else {
+                checkOperation(operation, Check.MULTIPLICATION);
+            }
+        }
+        if (node instanceof Declaration declaration) {
+            checkDeclaration(declaration);
+        }
+    }
+
     public void addAssignment(VariableAssignment node) {
         variableTypes.get(0).put(node.name.name, getExpressionType(node.expression));
     }
 
-    // CH01
+    // CH01 and CH06
     public void checkReference(VariableReference node) {
 
         for (int i = 0; i < variableTypes.getSize(); i++) {
-            System.out.println(variableTypes.get(i).containsKey(node.name));
             if (variableTypes.get(i).containsKey(node.name)) {
                 return;
             }
@@ -77,6 +84,10 @@ public class Checker {
 
     // CH02
     public void checkOperation(Operation node, Check checkType) {
+        checkColorInOperation(node);
+
+        if (node.hasError()) return;
+
         ExpressionType left = getExpressionType(node.lhs);
         ExpressionType right = getExpressionType(node.rhs);
 
@@ -103,6 +114,49 @@ public class Checker {
                 || (right == ExpressionType.SCALAR && (left == ExpressionType.PIXEL || left == ExpressionType.PERCENTAGE));
     }
 
+    // CH03
+    public void checkColorInOperation(Operation node) {
+        if (operationContainsColor(node)) {
+            node.setError("Invalid operation with color '" + node.lhs.toString() + "'. Please use correct format for operations.");
+        }
+    }
+
+    private boolean operationContainsColor(Operation node) {
+        return node.lhs != null && node.lhs.toString().contains("#")
+                || node.rhs != null && node.rhs.toString().contains("#");
+    }
+
+    //CH04
+    public void checkDeclaration(Declaration node) {
+        if(node.hasError()) return;
+        
+        if (!isDeclarationValid(node)) {
+            node.setError("Declaration '" + node + "' is invalid. Please use correct declarations.");
+        }
+    }
+
+    private boolean isDeclarationValid(Declaration node) {
+        String property = node.property.name;
+        ExpressionType expressionType = getExpressionType(node.expression);
+
+        boolean isColorProperty = property.equals("background-color") || property.equals("color");
+        boolean isMetricProperty =  property.equals("width") || property.equals("height");
+
+        boolean isColorValid = isColorProperty && expressionType == ExpressionType.COLOR;
+        boolean isMetricValid = isMetricProperty && expressionType == ExpressionType.PIXEL || isMetricProperty && expressionType == ExpressionType.PERCENTAGE;
+
+        return isColorValid || isMetricValid;
+    }
+
+    //CH05
+    public void checkIfClause(IfClause node) {
+        ExpressionType expressionType = getExpressionType(node.conditionalExpression);
+
+        if(expressionType != ExpressionType.BOOL) {
+            node.setError("If clause has invalid condition: " + node.conditionalExpression + ". Please use a condition that is of type BOOLEAN.");
+        }
+    }
+
     private ExpressionType getExpressionType(ASTNode node) {
 
         if (node instanceof ColorLiteral) {
@@ -123,7 +177,6 @@ public class Checker {
 
         if (node instanceof VariableReference ref) {
             for (int i = 0; i < variableTypes.getSize(); i++) {
-                System.out.println(variableTypes.get(i));
                 if (variableTypes.get(i).containsKey(ref.name)) {
                     return variableTypes.get(i).get(ref.name);
                 }
@@ -138,22 +191,15 @@ public class Checker {
             }
         }
 
+        if (node instanceof AddOperation addOperation) {
+            return getExpressionType(addOperation.lhs);
+        }
+
+        if (node instanceof SubtractOperation subtractOperation) {
+            return getExpressionType(subtractOperation.lhs);
+        }
+
         return ExpressionType.UNDEFINED;
     }
 
-    // CH03 - TODO: Isn't working as intended, need to fix
-    public void checkColorInOperation(Operation node) {
-        if (operationContainsColor(node)) {
-            node.setError("Invalid operation '" + node.lhs.toString() + "'. Please use correct format for operations.");
-        }
-    }
-
-    private boolean isNodeOperation(ASTNode node) {
-        return node instanceof MultiplyOperation || node instanceof AddOperation || node instanceof SubtractOperation;
-    }
-
-    private boolean operationContainsColor(Operation node) {
-        return node.lhs != null && node.lhs.toString().contains("#")
-                || node.rhs != null && node.rhs.toString().contains("#");
-    }
 }

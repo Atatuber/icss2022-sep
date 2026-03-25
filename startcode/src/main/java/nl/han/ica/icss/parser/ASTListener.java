@@ -55,14 +55,12 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void enterStyleRule(ICSSParser.StyleRuleContext ctx) {
-        Stylerule rule = new Stylerule();
+        currentContainer.push(new Stylerule());
+    }
 
-        // Push the current node rule to the stack
-        currentContainer.push(rule);
-
-        // Add selector to AST
-        Selector selector = getSelector(ctx.selector().getText());
-        rule.addChild(selector);
+    @Override
+    public void enterSelector(ICSSParser.SelectorContext ctx) {
+        currentContainer.peek().addChild(getSelector(ctx.getText()));
     }
 
     @Override
