@@ -17,8 +17,8 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
         Object[] copy = new Object[size + 1];
         copy[0] = value;
 
-        for (int i = 1; i < size; i++) {
-            copy[i] = list[i];
+        for (int i = 0; i < size; i++) {
+            copy[i + 1] = list[i];
         }
 
         list = copy;
@@ -37,7 +37,7 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
         Object[] copy = new Object[size + 1];
 
         for (int i = 0; i < index; i++) {
-            copy[i] = list[i];
+            copy[i + 1] = list[i];
         }
 
         copy[index] = value;
@@ -94,7 +94,7 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
     }
 
     private void checkBounds(int value) {
-        if (value < 0 || value > size) {
+        if (value < 0 || value >= size) {
             throw new IndexOutOfBoundsException();
         }
     }
