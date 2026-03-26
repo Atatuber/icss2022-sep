@@ -1,0 +1,18 @@
+LinkColor := #ff0000;
+UseLinkColor := FALSE;
+
+p {
+    if[TRUE]{
+	    if[FALSE] {
+	        width: 40px;
+	    } else {
+	        width: 10px;
+	    }
+    background-color: LinkColor;
+    } else {
+	    if[TRUE] {
+	        width: 20px;
+	    }
+        background-color: #000000;
+    }
+}
