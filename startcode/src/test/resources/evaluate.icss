@@ -1,0 +1,7 @@
+A := 50px;
+
+a {
+    A := 20px;
+    if [TRUE] { A := 40px; }
+    width: A;
+}

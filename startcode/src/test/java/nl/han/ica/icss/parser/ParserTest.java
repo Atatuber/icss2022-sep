@@ -1,5 +1,6 @@
 package nl.han.ica.icss.parser;
 
+import nl.han.ica.icss.transforms.Evaluator;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -95,5 +96,12 @@ class ParserTest {
 		AST sut = parseTestFile("level3.icss");
 		AST exp = Fixtures.uncheckedLevel3();
 		assertEquals(exp,sut);
+	}
+
+	@Test
+	void testEvaluate() throws IOException {
+		AST sut = parseTestFile("evaluate.icss");
+		Evaluator evaluator = new Evaluator();
+		evaluator.apply(sut);
 	}
 }
