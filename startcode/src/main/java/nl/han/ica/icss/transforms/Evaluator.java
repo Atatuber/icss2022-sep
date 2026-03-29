@@ -12,6 +12,7 @@ import nl.han.ica.icss.ast.operations.AddOperation;
 import nl.han.ica.icss.ast.operations.MultiplyOperation;
 import nl.han.ica.icss.ast.operations.SubtractOperation;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Evaluator implements Transform {
@@ -26,9 +27,10 @@ public class Evaluator implements Transform {
     public void apply(AST ast) {
         storeVariables(ast.root);
         checkExpression(null, ast.root);
+        checkIfElse(null, ast.root);
     }
 
-
+    // TR01
     public void checkExpression(ASTNode parent, ASTNode node) {
         for (ASTNode child : node.getChildren()) {
             checkExpression(node, child);
@@ -60,8 +62,46 @@ public class Evaluator implements Transform {
         }
     }
 
+    // TR02
+    public void checkIfElse(ASTNode parent, ASTNode node) {
+        for (ASTNode child : node.getChildren()) {
+            checkIfElse(node, child);
+        }
+
+        if (node instanceof IfClause ifClause && parent != null) {
+            boolean condition = isClauseTrue(ifClause.conditionalExpression);
+
+            ArrayList<ASTNode> replacement = condition
+                    ? ifClause.body // TRUE
+                    : (ifClause.elseClause != null // FALSE
+                        ? ifClause.elseClause.body // FALSE with ELSE
+                        : new ArrayList<>()); // FALSE without ELSE (EMPTY)
+
+            replaceBody(parent, ifClause, replacement);
+        }
+    }
 
     // ----- HELPER FUNCTIONS ------
+
+    private void replaceBody(ASTNode parent, ASTNode replacing, ArrayList<ASTNode> replacement) {
+        ArrayList<ASTNode> body = getBody(parent);
+
+        if (body == null) return;
+
+        int index = body.indexOf(replacing); // Specific index to keep order
+
+        body.remove(index);
+        body.addAll(index, replacement);
+    }
+
+    private ArrayList<ASTNode> getBody(ASTNode node) {
+        if (node instanceof Stylesheet stylesheet) return stylesheet.body;
+        if (node instanceof Stylerule stylerule) return stylerule.body;
+        if (node instanceof IfClause ifClause) return ifClause.body;
+        if (node instanceof ElseClause elseClause) return elseClause.body;
+
+        return null;
+    }
 
     private Literal evaluateLiteral(Literal first, Literal second, String operation) {
         if ("+".equals(operation) || "-".equals(operation)) {
