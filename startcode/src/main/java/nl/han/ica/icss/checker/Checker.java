@@ -33,28 +33,31 @@ public class Checker {
             openendScope = true;
         }
 
+        if (node instanceof VariableAssignment assignment) {
+            checkNode(assignment.expression);
+            addAssignment(assignment);
+
+            return;
+        }
+
         checkNodeSemantics(node);
 
         for (ASTNode child : node.getChildren()) {
             checkNode(child);
         }
 
-        if (openendScope) {
-            variableTypes.removeFirst();
-        }
+        if (openendScope) variableTypes.removeFirst();
     }
 
     public void checkNodeSemantics(ASTNode node) {
         if (node instanceof IfClause ifClause) {
             checkIfClause(ifClause);
         }
-        if (node instanceof VariableAssignment assignment) {
-            addAssignment(assignment);
-        }
         if (node instanceof VariableReference ref) {
             checkReference(ref);
         }
         if (node instanceof Operation operation) {
+            checkColorInOperation(operation);
             if (node instanceof AddOperation || node instanceof SubtractOperation) {
                 checkOperation(operation, Check.ADDITION);
             } else {
@@ -67,7 +70,9 @@ public class Checker {
     }
 
     public void addAssignment(VariableAssignment node) {
-        variableTypes.get(0).put(node.name.name, getExpressionType(node.expression));
+        if (!node.expression.hasError()) {
+            variableTypes.get(0).put(node.name.name, getExpressionType(node.expression));
+        }
     }
 
     // CH01 and CH06
@@ -84,8 +89,6 @@ public class Checker {
 
     // CH02
     public void checkOperation(Operation node, Check checkType) {
-        checkColorInOperation(node);
-
         if (node.hasError()) return;
 
         ExpressionType left = getExpressionType(node.lhs);
@@ -105,13 +108,15 @@ public class Checker {
     }
 
     private boolean isAddOrSubtractValid(ExpressionType left, ExpressionType right) {
-        return (left == ExpressionType.PIXEL && right == ExpressionType.PIXEL)
-                || (left == ExpressionType.PERCENTAGE && right == ExpressionType.PERCENTAGE);
+        boolean pixelAddition = left == ExpressionType.PIXEL && right == ExpressionType.PIXEL;
+        boolean percentageAddition = left == ExpressionType.PERCENTAGE && right == ExpressionType.PERCENTAGE;
+        return pixelAddition || percentageAddition;
     }
 
     private boolean isMultiplicationValid(ExpressionType left, ExpressionType right) {
-        return (left == ExpressionType.SCALAR && (right == ExpressionType.PIXEL || right == ExpressionType.PERCENTAGE))
-                || (right == ExpressionType.SCALAR && (left == ExpressionType.PIXEL || left == ExpressionType.PERCENTAGE));
+        boolean leftScalar = left == ExpressionType.SCALAR;
+        boolean rightScalar = right == ExpressionType.SCALAR;
+        return leftScalar || rightScalar;
     }
 
     // CH03
@@ -122,14 +127,14 @@ public class Checker {
     }
 
     private boolean operationContainsColor(Operation node) {
-        return node.lhs != null && node.lhs.toString().contains("#")
-                || node.rhs != null && node.rhs.toString().contains("#");
+        return node.lhs != null && getExpressionType(node.lhs) == ExpressionType.COLOR
+                || node.rhs != null && getExpressionType(node.rhs) == ExpressionType.COLOR;
     }
 
     //CH04
     public void checkDeclaration(Declaration node) {
-        if(node.hasError()) return;
-        
+        if (node.hasError()) return;
+
         if (!isDeclarationValid(node)) {
             node.setError("Declaration '" + node + "' is invalid. Please use correct declarations.");
         }
@@ -140,10 +145,11 @@ public class Checker {
         ExpressionType expressionType = getExpressionType(node.expression);
 
         boolean isColorProperty = property.equals("background-color") || property.equals("color");
-        boolean isMetricProperty =  property.equals("width") || property.equals("height");
+        boolean isMetricProperty = property.equals("width") || property.equals("height");
 
         boolean isColorValid = isColorProperty && expressionType == ExpressionType.COLOR;
-        boolean isMetricValid = isMetricProperty && expressionType == ExpressionType.PIXEL || isMetricProperty && expressionType == ExpressionType.PERCENTAGE;
+        boolean isMetricValid = isMetricProperty && expressionType == ExpressionType.PIXEL
+                || isMetricProperty && expressionType == ExpressionType.PERCENTAGE;
 
         return isColorValid || isMetricValid;
     }
@@ -152,28 +158,18 @@ public class Checker {
     public void checkIfClause(IfClause node) {
         ExpressionType expressionType = getExpressionType(node.conditionalExpression);
 
-        if(expressionType != ExpressionType.BOOL) {
+        if (expressionType != ExpressionType.BOOL) {
             node.setError("If clause has invalid condition: " + node.conditionalExpression + ". Please use a condition that is of type BOOLEAN.");
         }
     }
 
     private ExpressionType getExpressionType(ASTNode node) {
 
-        if (node instanceof ColorLiteral) {
-            return ExpressionType.COLOR;
-        }
-        if (node instanceof PercentageLiteral) {
-            return ExpressionType.PERCENTAGE;
-        }
-        if (node instanceof PixelLiteral) {
-            return ExpressionType.PIXEL;
-        }
-        if (node instanceof ScalarLiteral) {
-            return ExpressionType.SCALAR;
-        }
-        if (node instanceof BoolLiteral) {
-            return ExpressionType.BOOL;
-        }
+        if (node instanceof ColorLiteral) return ExpressionType.COLOR;
+        if (node instanceof PercentageLiteral) return ExpressionType.PERCENTAGE;
+        if (node instanceof PixelLiteral) return ExpressionType.PIXEL;
+        if (node instanceof ScalarLiteral) return ExpressionType.SCALAR;
+        if (node instanceof BoolLiteral) return ExpressionType.BOOL;
 
         if (node instanceof VariableReference ref) {
             for (int i = 0; i < variableTypes.getSize(); i++) {
@@ -184,11 +180,14 @@ public class Checker {
         }
 
         if (node instanceof MultiplyOperation multiplyOperation) {
-            if ((multiplyOperation.lhs instanceof ScalarLiteral) && !(multiplyOperation.rhs instanceof ScalarLiteral)) {
-                return getExpressionType(multiplyOperation.rhs);
-            } else {
-                return getExpressionType(multiplyOperation.lhs);
-            }
+            ExpressionType left = getExpressionType(multiplyOperation.lhs);
+            ExpressionType right = getExpressionType(multiplyOperation.rhs);
+
+            if (left == ExpressionType.SCALAR && right == ExpressionType.SCALAR) return ExpressionType.SCALAR;
+            if (left == ExpressionType.SCALAR) return right;
+            if (right == ExpressionType.SCALAR) return left;
+
+            return ExpressionType.UNDEFINED;
         }
 
         if (node instanceof AddOperation addOperation) {
@@ -201,5 +200,4 @@ public class Checker {
 
         return ExpressionType.UNDEFINED;
     }
-
 }

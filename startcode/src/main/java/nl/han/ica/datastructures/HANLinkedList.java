@@ -33,18 +33,22 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
 
     @Override
     public void insert(int index, T value) {
-        checkBounds(index);
+        if (index < 0 || index > size) {
+            throw new IndexOutOfBoundsException();
+        }
+
         Object[] copy = new Object[size + 1];
 
         for (int i = 0; i < index; i++) {
-            copy[i + 1] = list[i];
+            copy[i] = list[i];
         }
 
         copy[index] = value;
 
         for (int i = index; i < size; i++) {
-            copy[i] = list[i];
+            copy[i + 1] = list[i];
         }
+
         list = copy;
         size++;
     }
@@ -53,6 +57,7 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
     public void delete(int pos) {
         checkBounds(pos);
         Object[] copy = new Object[size - 1];
+
         int copyIndex = 0;
         for (int i = 0; i < size; i++) {
             if (i == pos) {
@@ -61,6 +66,7 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
             copy[copyIndex] = list[i];
             copyIndex++;
         }
+
         list = copy;
         size--;
     }
@@ -73,18 +79,21 @@ public class HANLinkedList<T> implements IHANLinkedList<T> {
 
     @Override
     public void removeFirst() {
-        if(size == 0) throw new RuntimeException("Empty LinkedList.");
+        if (size == 0) throw new RuntimeException("Empty LinkedList.");
 
         Object[] copy = new Object[size - 1];
+
         for (int i = 1; i < size; i++) {
             copy[i - 1] = list[i];
         }
+
         list = copy;
         size--;
     }
 
     @Override
     public T getFirst() {
+        if (size == 0) throw new RuntimeException("Empty LinkedList.");
         return (T) list[0];
     }
 
