@@ -43,6 +43,8 @@ public class Generator {
 		storeVariables(node);
 
 		if(node instanceof Stylerule stylerule) {
+			if(stylerule.body.isEmpty()) return;
+
 			for(Selector selector : stylerule.selectors) {
 				builder.append(selector).append(SINGLE_SPACE).append("{ \n");
 			}

@@ -123,7 +123,7 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
-        if(ctx.propertyName() != null) {
+        if (ctx.propertyName() != null) {
             currentContainer.pop();
         }
     }

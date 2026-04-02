@@ -4,10 +4,7 @@ package nl.han.ica.icss.transforms;
 import nl.han.ica.datastructures.HANLinkedList;
 import nl.han.ica.datastructures.IHANLinkedList;
 import nl.han.ica.icss.ast.*;
-import nl.han.ica.icss.ast.literals.BoolLiteral;
-import nl.han.ica.icss.ast.literals.PercentageLiteral;
-import nl.han.ica.icss.ast.literals.PixelLiteral;
-import nl.han.ica.icss.ast.literals.ScalarLiteral;
+import nl.han.ica.icss.ast.literals.*;
 import nl.han.ica.icss.ast.operations.AddOperation;
 import nl.han.ica.icss.ast.operations.MultiplyOperation;
 import nl.han.ica.icss.ast.operations.SubtractOperation;
@@ -25,63 +22,131 @@ public class Evaluator implements Transform {
 
     @Override
     public void apply(AST ast) {
-        storeVariables(ast.root);
-        checkExpression(null, ast.root);
-        checkIfElse(null, ast.root);
+        variableValues.addFirst(new HashMap<>());
+        transformNode(ast.root);
+    }
+
+    private void transformNode(ASTNode node) {
+        if (node == null) return;
+
+        ArrayList<ASTNode> body = getBody(node);
+
+        boolean opensScope = node instanceof Stylesheet || node instanceof Stylerule;
+
+        if (opensScope && !(node instanceof Stylesheet)) {
+            variableValues.addFirst(new HashMap<>());
+        }
+
+        if (body != null) {
+            for (int i = 0; i < body.size(); i++) {
+                ASTNode child = body.get(i);
+
+                if (child instanceof IfClause ifClause) {
+                    transformIfElse(node, ifClause);
+                    i--; // Get on current scope, because if scope got deleted.
+                    continue;
+                }
+
+                if (child instanceof VariableAssignment assignment) {
+                    handleVariableAssignment(assignment);
+                    continue;
+                }
+
+                if (child instanceof Declaration declaration) {
+                    handleDeclaration(declaration);
+                    continue;
+                }
+
+                transformNode(child);
+            }
+        } else {
+            for (ASTNode child : node.getChildren()) {
+                transformNode(child);
+            }
+        }
+
+        if (opensScope && !(node instanceof Stylesheet)) {
+            variableValues.removeFirst();
+        }
     }
 
     // TR01
-    public void checkExpression(ASTNode parent, ASTNode node) {
-        for (ASTNode child : node.getChildren()) {
-            checkExpression(node, child);
-        }
-
-        evaluateExpression(parent, node);
-    }
-
-    public void evaluateExpression(ASTNode parent, ASTNode node) {
-
-        if (!(node instanceof Operation op) || parent == null) return;
-
-        Literal left = getLiteral(op.lhs);
-        Literal right = getLiteral(op.rhs);
-
-        if (node instanceof MultiplyOperation) {
-            Literal newLiteral = evaluateLiteral(left, right, "*");
-            replaceChild(parent, node, newLiteral);
-        }
-
-        if (node instanceof AddOperation) {
-            Literal newLiteral = evaluateLiteral(left, right, "+");
-            replaceChild(parent, node, newLiteral);
-        }
-
-        if (node instanceof SubtractOperation) {
-            Literal newLiteral = evaluateLiteral(left, right, "-");
-            replaceChild(parent, node, newLiteral);
-        }
+    private void handleDeclaration(Declaration declaration) {
+        declaration.expression = getLiteral(declaration.expression);
     }
 
     // TR02
-    public void checkIfElse(ASTNode parent, ASTNode node) {
-        for (ASTNode child : node.getChildren()) {
-            checkIfElse(node, child);
-        }
+    private void transformIfElse(ASTNode parent, IfClause ifClause) {
+        boolean condition = isClauseTrue(ifClause.conditionalExpression);
 
-        if (node instanceof IfClause ifClause && parent != null) {
-            boolean condition = isClauseTrue(ifClause.conditionalExpression);
+        ArrayList<ASTNode> replacement = condition
+                ? ifClause.body
+                : (ifClause.elseClause != null
+                   ? ifClause.elseClause.body : new ArrayList<>());
 
-            ArrayList<ASTNode> replacement = condition
-                    ? ifClause.body // TRUE
-                    : (ifClause.elseClause != null // FALSE
-                        ? ifClause.elseClause.body // FALSE with ELSE
-                        : new ArrayList<>()); // FALSE without ELSE (EMPTY)
-
-            replaceBody(parent, ifClause, replacement);
-        }
+        replaceBody(parent, ifClause, replacement);
     }
 
     // ----- HELPER FUNCTIONS ------
+
+    private Literal getLiteral(Expression expression) {
+        if (expression instanceof BoolLiteral) return new BoolLiteral(((BoolLiteral) expression).value);
+        if (expression instanceof PercentageLiteral)
+            return new PercentageLiteral(((PercentageLiteral) expression).value);
+        if (expression instanceof PixelLiteral) return new PixelLiteral(((PixelLiteral) expression).value);
+        if (expression instanceof ScalarLiteral) return new ScalarLiteral(((ScalarLiteral) expression).value);
+        if (expression instanceof ColorLiteral) return new ColorLiteral(((ColorLiteral) expression).value);
+
+        if (expression instanceof VariableReference reference) {
+            for (int i = 0; i < variableValues.getSize(); i++) {
+                if (variableValues.get(i).containsKey(reference.name)) {
+                    return getLiteral(variableValues.get(i).get(reference.name));
+                }
+            }
+        }
+
+        if (expression instanceof Operation op) {
+            Literal left = getLiteral(op.lhs);
+            Literal right = getLiteral(op.rhs);
+
+            if (left == null || right == null) return null;
+
+            if (op instanceof MultiplyOperation) {
+                return evaluateLiteral(left, right, "*");
+            }
+            if (op instanceof AddOperation) {
+                return evaluateLiteral(left, right, "+");
+            }
+            if (op instanceof SubtractOperation) {
+                return evaluateLiteral(left, right, "-");
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isClauseTrue(Expression expression) {
+        if (expression instanceof BoolLiteral bool) {
+            return bool.value;
+        } else if (expression instanceof VariableReference reference) {
+            for (int i = 0; i < variableValues.getSize(); i++) {
+                if (variableValues.get(i).containsKey(reference.name)) {
+                    Literal value = variableValues.get(i).get(reference.name);
+                    if (value instanceof BoolLiteral bool) return bool.value;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void handleVariableAssignment(VariableAssignment assignment) {
+        Literal value = getLiteral(assignment.expression);
+        if (value == null) return;
+
+        assignment.expression = value;
+        variableValues.get(0).put(assignment.name.name, value);
+    }
 
     private void replaceBody(ASTNode parent, ASTNode replacing, ArrayList<ASTNode> replacement) {
         ArrayList<ASTNode> body = getBody(parent);
@@ -139,6 +204,9 @@ public class Evaluator implements Transform {
         if (second instanceof PercentageLiteral percentage && first instanceof ScalarLiteral scalar) {
             return new PercentageLiteral(evaluate(percentage.value, scalar.value, "*"));
         }
+        if (first instanceof ScalarLiteral scalar && second instanceof ScalarLiteral secondScalar) {
+            return new ScalarLiteral(evaluate(scalar.value, secondScalar.value, "*"));
+        }
 
         return null;
     }
@@ -151,79 +219,4 @@ public class Evaluator implements Transform {
             default -> throw new ArithmeticException();
         };
     }
-
-    private Literal getLiteral(Expression expression) {
-        if (expression instanceof BoolLiteral) return new BoolLiteral(((BoolLiteral) expression).value);
-        if (expression instanceof PercentageLiteral)
-            return new PercentageLiteral(((PercentageLiteral) expression).value);
-        if (expression instanceof PixelLiteral) return new PixelLiteral(((PixelLiteral) expression).value);
-        if (expression instanceof ScalarLiteral) return new ScalarLiteral(((ScalarLiteral) expression).value);
-
-        if (expression instanceof VariableReference reference) {
-            for (int i = 0; i < variableValues.getSize(); i++) {
-                if (variableValues.get(i).containsKey(reference.name)) {
-                    return getLiteral(variableValues.get(i).get(reference.name));
-                }
-            }
-        }
-
-        if (expression instanceof Operation op) {
-            Literal left = getLiteral(op.lhs);
-            Literal right = getLiteral(op.rhs);
-
-            if (left == null || right == null) return null;
-
-            if (op instanceof MultiplyOperation) {
-                return evaluateLiteral(left, right, "*");
-            }
-            if (op instanceof AddOperation) {
-                return evaluateLiteral(left, right, "+");
-            }
-            if (op instanceof SubtractOperation) {
-                return evaluateLiteral(left, right, "-");
-            }
-        }
-
-        return null;
-    }
-
-    private boolean isClauseTrue(Expression expression) {
-        if (expression instanceof BoolLiteral bool) {
-            return bool.value;
-        } else if (expression instanceof VariableReference reference) {
-            for (int i = 0; i < variableValues.getSize(); i++) {
-                if (variableValues.get(i).containsKey(reference.name)) {
-                    Literal value = variableValues.get(i).get(reference.name);
-                    if (value instanceof BoolLiteral bool) return bool.value;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private void storeVariables(ASTNode node) {
-        for (ASTNode child : node.getChildren()) {
-            if (child instanceof VariableAssignment assignment) {
-                Expression expression = assignment.expression;
-                HashMap<String, Literal> map = new HashMap<>();
-                map.put(assignment.name.name, getLiteral(expression));
-                variableValues.addFirst(map);
-            }
-            storeVariables(child);
-        }
-    }
-
-    private void replaceChild(ASTNode parent, ASTNode oldChild, Literal newChild) {
-        if (parent instanceof Declaration d && d.expression == oldChild) {
-            d.expression = newChild;
-        } else if (parent instanceof VariableAssignment v && v.expression == oldChild) {
-            v.expression = newChild;
-        } else if (parent instanceof Operation op) {
-            if (op.lhs == oldChild) op.lhs = newChild;
-            else if (op.rhs == oldChild) op.rhs = newChild;
-        }
-    }
-
-
 }
