@@ -2,10 +2,11 @@ package nl.han.ica.datastructures;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class HANQueue<T> implements IHANQueue<T> {
 
-    private final ArrayList<T> queue;
+    private final List<T> queue;
 
     // Make empty queue
     public HANQueue() {
