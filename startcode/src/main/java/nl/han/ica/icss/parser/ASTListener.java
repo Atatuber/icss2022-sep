@@ -60,7 +60,7 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void enterSelector(ICSSParser.SelectorContext ctx) {
-        currentContainer.peek().addChild(getSelector(ctx.getText()));
+        currentContainer.peek().addChild(getSelector(ctx));
     }
 
     @Override
@@ -202,14 +202,18 @@ public class ASTListener extends ICSSBaseListener {
         };
     }
 
-    private Selector getSelector(String text) {
-        if (text.startsWith(".")) {
-            return new ClassSelector(text);
-        } else if (text.startsWith("#")) {
-            return new IdSelector(text);
-        } else { // TODO: Better check for this tag selector
-            return new TagSelector(text);
+    private Selector getSelector(ICSSParser.SelectorContext ctx) {
+        if (ctx.CLASS_IDENT() != null) {
+            return new ClassSelector(ctx.getText());
         }
+        if (ctx.ID_IDENT() != null) {
+            return new IdSelector(ctx.getText());
+        }
+        if (ctx.LOWER_IDENT() != null) {
+            return new TagSelector(ctx.getText());
+        }
+
+        return null;
     }
 
     private Expression createLiteralExpression(String literal) {
